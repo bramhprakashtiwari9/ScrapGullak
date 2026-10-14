@@ -68,7 +68,7 @@ Responses may be raw DTOs or wrapped as `{ success, message, data }`; Spring `Pa
 
 This repository is configured to build a **public interactive demo only**. It uses the in-browser mock data, hash-based routes and a visible notice that bookings and payments are simulated. It does not connect to an API or send money.
 
-To deploy, put the contents of this website project (including `.github/workflows/deploy-pages.yml`) at the root of the `ScrapGullak` GitHub repository. Push to `main`; the workflow builds the site and deploys `dist` to GitHub Pages. In the repository, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source if it is not selected automatically.
+To deploy, put the contents of this website project (including `.github/workflows/deploy-pages.yml`) at the root of the `ScrapGullak` GitHub repository. Push to `main`; the workflow builds the site, enables GitHub Pages for the repository if needed, and deploys `dist`. The workflow requires the repository Actions token to have the configured `pages: write` and `id-token: write` permissions.
 
 The expected demo address is `https://bramhprakashtiwari9.github.io/ScrapGullak/`. App navigation uses URL fragments (for example, `/#/rates`) so direct links work on GitHub Pages.
 
