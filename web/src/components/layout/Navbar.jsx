@@ -34,8 +34,10 @@ function ConnectionPill() {
   const demo = IS_PUBLIC_DEMO || isMockToken(session?.token);
   const label = demo ? 'Demo data' : connectionMode === 'offline' ? 'Offline' : connectionMode === 'online' ? 'Live API' : 'Connecting';
   const dot = demo ? 'bg-coin' : connectionMode === 'online' ? 'bg-gullak' : 'bg-slate-400';
-  const title = demo
-    ? 'The backend is not reachable, so the app is running on built-in sample data. Everything still works.'
+  const title = IS_PUBLIC_DEMO
+    ? 'This public demo uses sample data and does not connect to the API.'
+    : isMockToken(session?.token)
+      ? 'This session contains sample data, not a real account.'
     : connectionMode === 'offline' ? 'The API is unreachable. Live account data is not being replaced with sample data.' : 'Connected to the ScrapGullak Spring Boot API.';
   return (
     <span title={title} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-200">
