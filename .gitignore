@@ -1,5 +1,6 @@
-node_modules
-dist
+backend/target/
+web/node_modules/
+web/dist/
 .env
-.env.local
-.DS_Store
+.env.*
+!.env.example
