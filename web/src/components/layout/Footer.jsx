@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { API_BASE_URL } from '../../services/api';
+import { API_BASE_URL, IS_PUBLIC_DEMO } from '../../services/api';
 import GullakMark from '../ui/GullakMark';
 
 export default function Footer() {
@@ -39,10 +39,10 @@ export default function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-2 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} ScrapGullak Recycling. API: {API_BASE_URL}</span>
-          <button type="button" onClick={resetDemo} className="inline-flex items-center gap-1.5 self-start text-slate-400 hover:text-white">
+          <span>© {new Date().getFullYear()} ScrapGullak Recycling.{!IS_PUBLIC_DEMO && ` API: ${API_BASE_URL}`}</span>
+          {IS_PUBLIC_DEMO && <button type="button" onClick={resetDemo} className="inline-flex items-center gap-1.5 self-start text-slate-400 hover:text-white">
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Reset demo data
-          </button>
+          </button>}
         </div>
       </div>
     </footer>

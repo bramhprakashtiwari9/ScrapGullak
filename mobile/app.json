@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "ScrapGullak",
+    "slug": "scrapgullak",
+    "scheme": "scrapgullak",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F5F8F6",
+    "splash": { "backgroundColor": "#0F172A", "resizeMode": "contain" },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "in.scrapgullak.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ScrapGullak uses the camera so you can photograph your scrap pile for the pickup agent.",
+        "NSPhotoLibraryUsageDescription": "ScrapGullak lets you attach a photo of your scrap from your gallery.",
+        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true }
+      }
+    },
+    "android": {
+      "package": "in.scrapgullak.app",
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": { "backgroundColor": "#10B981" }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "ScrapGullak",
+      "shortName": "ScrapGullak",
+      "themeColor": "#0F172A",
+      "backgroundColor": "#F5F8F6"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ScrapGullak uses the camera so you can photograph your scrap pile for the pickup agent.",
+          "photosPermission": "ScrapGullak lets you attach a photo of your scrap from your gallery."
+        }
+      ],
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+    ]
+  }
+}

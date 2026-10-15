@@ -1,15 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi, connection, ratesApi, resetDemoData, sessionStore } from '../services/api';
+import { authApi, connection, IS_PUBLIC_DEMO, ratesApi, resetDemoData, sessionStore } from '../services/api';
+import { ApiError } from '../services/errors';
 
 const AppContext = createContext(null);
 const VIEW_KEY = 'sg_view';
 
-/** Demo views offered by the role switcher, and the account each one signs into. */
 export const VIEWS = {
   customer: { label: 'Customer', loginAs: 'CUSTOMER', home: '/' },
   b2b: { label: 'B2B corporate', loginAs: 'CORPORATE', home: '/b2b' },
   admin: { label: 'Admin yard', loginAs: 'ADMIN', home: '/admin' },
+  agent: { label: 'Pickup agent', loginAs: 'AGENT', home: '/agent' },
 };
 
 function readView() {
@@ -45,34 +46,61 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
-  const signIn = useCallback(async (loginAs) => {
-    // De-duplicate concurrent sign-ins (StrictMode, fast clicks)
-    if (pendingLogin.current?.loginAs === loginAs) return pendingLogin.current.promise;
-    const promise = authApi.demoLogin(loginAs).then((auth) => {
+  const signIn = useCallback(async (phone, password, expectedRole) => {
+    if (pendingLogin.current?.phone === phone) return pendingLogin.current.promise;
+    const promise = (IS_PUBLIC_DEMO
+      ? authApi.demoLogin(expectedRole === 'STAFF' ? 'ADMIN' : expectedRole || 'CUSTOMER')
+      : authApi.login(phone, password)
+    ).then((auth) => {
+      if (!IS_PUBLIC_DEMO && expectedRole === 'CUSTOMER' && auth.role !== 'CUSTOMER') {
+        authApi.logout();
+        throw new ApiError('This account is for staff. Use the staff sign-in option.', 403);
+      }
+      if (!IS_PUBLIC_DEMO && expectedRole === 'STAFF' && !['ADMIN', 'AGENT'].includes(auth.role)) {
+        authApi.logout();
+        throw new ApiError('This is a customer account. Use customer sign-in.', 403);
+      }
       setSession({ token: auth.token, user: auth.user, role: auth.role });
       return auth;
     }).finally(() => { pendingLogin.current = null; });
-    pendingLogin.current = { loginAs, promise };
+    pendingLogin.current = { phone, promise };
     return promise;
   }, []);
 
-  /** Make sure a session matching the current demo view exists (used by protected pages). */
-  const ensureSession = useCallback(async () => {
-    const wanted = VIEWS[view].loginAs;
+  const register = useCallback(async (payload) => {
+    const auth = await authApi.register(payload);
+    if (auth.role !== 'CUSTOMER') {
+      authApi.logout();
+      throw new ApiError('Customer registration did not return a customer account.', 403);
+    }
+    setSession({ token: auth.token, user: auth.user, role: auth.role });
+    return auth;
+  }, []);
+
+  const logout = useCallback(() => {
+    authApi.logout();
+    setSession(null);
+  }, []);
+
+  const ensureSession = useCallback(async (role) => {
     const current = sessionStore.get();
-    const matches = current && (wanted === 'ADMIN' ? current.role === 'ADMIN' : current.role === 'CUSTOMER');
-    if (matches) return current;
-    return signIn(wanted);
-  }, [signIn, view]);
+    if (current && (!role || current.role === role)) return current;
+    if (IS_PUBLIC_DEMO && !current) {
+      const demo = await authApi.demoLogin(role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER');
+      setSession({ token: demo.token, user: demo.user, role: demo.role });
+      return demo;
+    }
+    throw new ApiError('Sign in to continue.', 401);
+  }, []);
 
   const switchView = useCallback(async (next) => {
-    if (!VIEWS[next]) return;
+    if (!VIEWS[next] || !IS_PUBLIC_DEMO) return;
     setSwitching(true);
     setView(next);
     try { localStorage.setItem(VIEW_KEY, next); } catch { /* ignore */ }
     try {
       authApi.logout();
-      await signIn(VIEWS[next].loginAs);
+      await signIn(null, null, VIEWS[next].loginAs);
       navigate(VIEWS[next].home);
     } catch (e) {
       notify(e.message || 'Could not switch view.', 'error');
@@ -84,31 +112,30 @@ export function AppProvider({ children }) {
   const resetDemo = useCallback(async () => {
     resetDemoData();
     authApi.logout();
-    await signIn(VIEWS[view].loginAs);
+    await signIn(null, null, VIEWS[view].loginAs);
     await refreshRates();
     notify('Demo data reset to the starting state.');
   }, [notify, refreshRates, signIn, view]);
 
-  // Bootstrap: load rates and make sure the demo view has a session.
+  // Public rates are available before sign-in; only the public demo creates a mock session.
   useEffect(() => {
     refreshRates();
-    ensureSession().catch(() => {});
+    if (IS_PUBLIC_DEMO) ensureSession().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const onUnauthorized = () => {
       setSession(null);
-      signIn(VIEWS[view].loginAs).catch(() => {});
     };
     window.addEventListener('sg:unauthorized', onUnauthorized);
     return () => window.removeEventListener('sg:unauthorized', onUnauthorized);
   }, [signIn, view]);
 
   const value = useMemo(() => ({
-    view, switchView, switching, session, ensureSession, connectionMode,
+    view, switchView, switching, session, signIn, register, logout, ensureSession, connectionMode,
     rates, ratesLoading, refreshRates, notify, toasts, resetDemo,
-  }), [view, switchView, switching, session, ensureSession, connectionMode, rates, ratesLoading, refreshRates, notify, toasts, resetDemo]);
+  }), [view, switchView, switching, session, signIn, register, logout, ensureSession, connectionMode, rates, ratesLoading, refreshRates, notify, toasts, resetDemo]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

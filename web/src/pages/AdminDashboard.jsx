@@ -89,7 +89,7 @@ function AdminConsole() {
 }
 
 export default function AdminDashboard() {
-  const { session, switchView, switching } = useApp();
+  const { session } = useApp();
   const isAdmin = session?.role === 'ADMIN' || session?.user?.role === 'ADMIN';
 
   return (
@@ -102,8 +102,8 @@ export default function AdminDashboard() {
       </header>
       {isAdmin ? <AdminConsole key={session?.token} /> : (
         <EmptyState icon={Warehouse} title="This dashboard is for ScrapGullak yard staff"
-          action={<button type="button" className="btn-primary" disabled={switching} onClick={() => switchView('admin')}>Switch to Admin yard view</button>}>
-          Switch to the admin demo account to edit rates, dispatch agents and track baling.
+          action={<a className="btn-primary" href="/login">Sign in as staff</a>}>
+          Sign in with an administrator account to edit rates, dispatch agents and track baling.
         </EmptyState>
       )}
     </div>

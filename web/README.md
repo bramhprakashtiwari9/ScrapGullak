@@ -10,12 +10,11 @@ cp .env.example .env   # optional: point at your backend
 npm run dev            # http://localhost:5173
 ```
 
-The Spring Boot backend is expected at `http://localhost:8080/api/v1` (CORS already allows `http://localhost:5173`).
-**The backend is optional.** If it's unreachable, every call falls back to a built-in mock backend (`src/services/mockStore.js`) that applies the same business rules and persists to `localStorage`. The pill in the top bar shows "Live API" or "Demo data". Use "Reset demo data" in the footer to start over.
+The Spring Boot backend is expected at `http://localhost:8080/api/v1` (CORS already allows `http://localhost:5173`). Real-account mode requires a reachable backend; network errors are shown instead of silently switching to sample data. To explicitly run the mock experience locally, set `VITE_PUBLIC_DEMO=true`.
 
 ## Demo role switcher
 
-The top bar switches between **Customer**, **B2B corporate** and **Admin yard**. When optional local demo account variables are configured in `.env`, the app tries those accounts first; otherwise it uses mock sessions. Do not put production credentials in Vite variables: they are included in the public browser bundle.
+The top-bar role switcher appears only in explicit demo mode. In real-account mode, customers can register and sign in, while administrators and agents sign in with accounts provisioned by ScrapGullak. The backend assigns and authorizes roles; staff self-registration is not available. Never put production credentials or secrets in Vite variables: they are included in the public browser bundle.
 
 The GitHub Pages build uses mock sessions and mock data only. It does not send API requests, authenticate users, dispatch pickups, or transfer payments.
 
@@ -24,7 +23,7 @@ The GitHub Pages build uses mock sessions and mock data only. It does not send A
 ```
 src/
   services/
-    api.js          Axios instance, JWT interceptors, connection status, mock fallback, all endpoints
+    api.js          Axios instance, JWT interceptors, connection status, explicit-demo mock fallback, all endpoints
     mockStore.js    Offline backend: rates, estimate, pickups, passbook, weighing, admin, inventory
     mockData.js     Seed: 12 Noida categories, yard stock, admin, 3 agents, customers, 14 pickups
     errors.js       ApiError
@@ -44,7 +43,7 @@ src/
 
 | Screen | Endpoint |
 |---|---|
-| Login / role switch | `POST /auth/login`, `POST /auth/register` |
+| Customer and staff login / customer registration | `POST /auth/login`, `POST /auth/register` |
 | Rate card, ticker | `GET /rates/live` |
 | Gullak calculator | `POST /rates/estimate` `{ items: [{ categoryId, weightKg }] }` |
 | Booking widget, B2B form | `POST /customer/pickups` |
@@ -54,7 +53,7 @@ src/
 | Yard tracker | `POST /admin/inventory/process` `{ categoryId, stage, weightKg }`, stage = `SEGREGATE` / `BALE` / `DISPATCH` |
 | KPI strip | `GET /admin/dashboard/metrics` |
 
-Supporting endpoints the admin screens also call (add them to `AdminController` if your backend doesn't have them yet; until then the UI falls back to mock data on 404): `GET /admin/pickups`, `GET /admin/agents`, `GET /admin/inventory`, `GET /admin/rates` (full rate card with mill selling rates; the public `/rates/live` omits `millSellingRateInr` for non-admin callers).
+The admin screens also call `GET /admin/pickups`, `GET /admin/agents`, `GET /admin/inventory` and `GET /admin/rates` (full rate card with mill selling rates). Missing or failed API endpoints are shown as errors in real-account mode rather than being replaced by mock data.
 
 Extra fields sent with a pickup (`scrapGroups`, `companyName`, `contactPhone`, `notes`, `corporateDetails`) are safe to ignore server-side, or add them to `CreatePickupRequest`. Photos are sent as `photoUrl: null` to the real backend; wire an upload endpoint (S3/Cloudinary) where marked `TODO` in `api.js`.
 
@@ -72,4 +71,4 @@ The repository contains `web/` and `backend/`. Push to `main`; the workflow buil
 
 The expected demo address is `https://bramhprakashtiwari9.github.io/ScrapGullak/`. App navigation uses URL fragments (for example, `/#/rates`) so direct links work on GitHub Pages.
 
-Do not add live API URLs, customer or agent credentials, payout credentials, or private company data to this static deployment. A live service requires a separately deployed HTTPS backend, real customer and agent sign-in screens, server-side role authorization, and a verified payment/payout integration.
+Do not add customer or agent credentials, payout credentials, or private company data to this static deployment. GitHub Pages remains demo-only (`VITE_PUBLIC_DEMO=true`); it does not connect to an API or accept real accounts. To enable real accounts, deploy a separately hosted HTTPS backend and build with `VITE_PUBLIC_DEMO=false` plus a production `VITE_API_URL`, then verify CORS, server-side role authorization and the payment/payout integration. The API must be deployed first; a successful web build alone does not make accounts or payouts live.

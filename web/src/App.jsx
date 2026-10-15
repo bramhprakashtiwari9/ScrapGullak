@@ -9,6 +9,9 @@ import PassbookPage from './pages/PassbookPage';
 import B2BPortalPage from './pages/B2BPortalPage';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import AuthGate from './components/auth/AuthGate';
 
 export default function App() {
   const location = useLocation();
@@ -25,11 +28,20 @@ export default function App() {
       <Navbar />
       <main id="main" className="flex-1">
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/rates" element={<RatesPage />} />
-          <Route path="/passbook" element={<PassbookPage />} />
-          <Route path="/b2b" element={<B2BPortalPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route element={<AuthGate roles={['CUSTOMER']} />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/passbook" element={<PassbookPage />} />
+            <Route path="/b2b" element={<B2BPortalPage />} />
+          </Route>
+          <Route element={<AuthGate roles={['ADMIN']} />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+          <Route element={<AuthGate roles={['AGENT']} />}>
+            <Route path="/agent" element={<div className="container-page py-12"><h1 className="text-3xl font-extrabold">Pickup agent app</h1><p className="mt-2 text-slate-600">Open the ScrapGullak mobile app to manage your assigned pickups.</p></div>} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

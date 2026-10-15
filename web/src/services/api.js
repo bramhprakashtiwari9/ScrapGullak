@@ -4,7 +4,7 @@
  * - Axios instance pointed at the Spring Boot backend (VITE_API_URL, default http://localhost:8080/api/v1).
  * - JWT request interceptor + 401 handling.
  * - Every call goes through `call()`, which falls back to the in-browser mock backend (mockStore.js)
- *   when the server is unreachable, so the whole app works with the backend offline.
+ *   only in explicit public-demo mode. Real-account mode reports API/network failures.
  */
 import axios from 'axios';
 import { mock, resetMockState } from './mockStore';
@@ -15,13 +15,6 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:80
 
 const env = import.meta.env;
 export const IS_PUBLIC_DEMO = env.VITE_PUBLIC_DEMO === 'true';
-
-export const DEMO_CREDENTIALS = {
-  CUSTOMER: { phone: env.VITE_DEMO_CUSTOMER_PHONE, password: env.VITE_DEMO_CUSTOMER_PASSWORD },
-  CORPORATE: { phone: env.VITE_DEMO_B2B_PHONE || env.VITE_DEMO_CUSTOMER_PHONE, password: env.VITE_DEMO_B2B_PASSWORD || env.VITE_DEMO_CUSTOMER_PASSWORD },
-  ADMIN: { phone: env.VITE_DEMO_ADMIN_PHONE, password: env.VITE_DEMO_ADMIN_PASSWORD },
-  AGENT: { phone: env.VITE_DEMO_AGENT_PHONE, password: env.VITE_DEMO_AGENT_PASSWORD },
-};
 
 // ---------------------------------------------------------------- session storage
 const TOKEN_KEY = 'sg_token';
@@ -110,19 +103,28 @@ function toApiError(e) {
  * @param request   () => axios promise against the real backend
  * @param fallback  () => mock promise
  * @param auth      endpoint needs a JWT; with a demo (mock) session we go straight to the mock
- * @param fallbackOn404  for supporting endpoints the backend may not implement yet
  */
-async function call({ request, fallback, auth = true, fallbackOn404 = false }) {
-  if (IS_PUBLIC_DEMO || (auth && isMockToken(sessionStore.token()))) return fallback();
-  if (mode === 'offline' && Date.now() - lastOfflineAt < RETRY_AFTER_MS) return fallback();
+async function call({ request, fallback, auth = true }) {
+  if (IS_PUBLIC_DEMO) return fallback();
+  if (auth && isMockToken(sessionStore.token())) {
+    sessionStore.clear();
+    window.dispatchEvent(new CustomEvent('sg:unauthorized'));
+    throw new ApiError('Please sign in with a real account to continue.', 401);
+  }
+  if (mode === 'offline' && Date.now() - lastOfflineAt < RETRY_AFTER_MS) {
+    throw new ApiError('The ScrapGullak server is not reachable. Please try again when the service is online.', 0);
+  }
   try {
     const res = await request();
     setMode('online');
     return unwrap(res);
   } catch (e) {
     if (e instanceof ApiError) throw e;
-    if (isNetworkError(e)) { setMode('offline'); return fallback(); }
-    if (fallbackOn404 && e.response?.status === 404) return fallback();
+    if (isNetworkError(e)) {
+      setMode('offline');
+      if (IS_PUBLIC_DEMO) return fallback();
+      throw new ApiError('The ScrapGullak server is not reachable. Please try again when the service is online.', 0);
+    }
     throw toApiError(e);
   }
 }
@@ -186,17 +188,9 @@ export const authApi = {
 
   /** Uses configured local demo accounts when available; otherwise uses the mock session. */
   async demoLogin(roleKey) {
-    const creds = DEMO_CREDENTIALS[roleKey] || DEMO_CREDENTIALS.CUSTOMER;
-    if (IS_PUBLIC_DEMO || !creds.phone || !creds.password) {
-      const auth = normalizeAuth(await mock.login(roleKey));
-      return persist(auth);
-    }
-    try {
-      return await authApi.login(creds.phone, creds.password);
-    } catch {
-      const auth = normalizeAuth(await mock.login(roleKey));
-      return persist(auth);
-    }
+    if (!IS_PUBLIC_DEMO) throw new ApiError('Demo sign-in is disabled.', 403);
+    const auth = normalizeAuth(await mock.login(roleKey));
+    return persist(auth);
   },
 
   logout() { sessionStore.clear(); },
@@ -251,15 +245,15 @@ export const agentApi = {
 
 export const adminApi = {
   /** Full rate card incl. mill selling rates (the public /rates/live hides mill rates from non-admins). */
-  rates: () => call({ request: () => http.get('/admin/rates'), fallback: () => mock.liveRates(), fallbackOn404: true }).then(asArray),
+  rates: () => call({ request: () => http.get('/admin/rates'), fallback: () => mock.liveRates() }).then(asArray),
   updateRate: (categoryId, payload) => call({ request: () => http.put(`/admin/rates/${categoryId}`, payload), fallback: () => mock.updateRate(categoryId, payload) }),
   assignAgent: (orderId, agentId) => call({ request: () => http.patch(`/admin/pickups/${orderId}/assign/${agentId}`), fallback: () => mock.assignAgent(orderId, agentId) }),
   processInventory: (payload) => call({ request: () => http.post('/admin/inventory/process', payload), fallback: () => mock.processInventory(payload) }),
   metrics: () => call({ request: () => http.get('/admin/dashboard/metrics'), fallback: () => mock.metrics() }),
   // Supporting list endpoints for the admin screens (add to AdminController if not present yet).
-  pickups: () => call({ request: () => http.get('/admin/pickups'), fallback: () => mock.allPickups(), fallbackOn404: true }).then(asArray),
-  agents: () => call({ request: () => http.get('/admin/agents'), fallback: () => mock.agents(), fallbackOn404: true }).then(asArray),
-  inventory: () => call({ request: () => http.get('/admin/inventory'), fallback: () => mock.inventory(), fallbackOn404: true }).then(asArray),
+  pickups: () => call({ request: () => http.get('/admin/pickups'), fallback: () => mock.allPickups() }).then(asArray),
+  agents: () => call({ request: () => http.get('/admin/agents'), fallback: () => mock.agents() }).then(asArray),
+  inventory: () => call({ request: () => http.get('/admin/inventory'), fallback: () => mock.inventory() }).then(asArray),
 };
 
 export function resetDemoData() {
