@@ -1,0 +1,53 @@
+databases:
+  - name: scrapgullak-db
+    databaseName: scrapgullak
+    user: scrapgullak
+    plan: free
+
+services:
+  - type: web
+    name: scrapgullak-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health/readiness
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres
+      - key: DB_HOST
+        fromDatabase:
+          name: scrapgullak-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: scrapgullak-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: scrapgullak-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: scrapgullak-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: scrapgullak-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_ADMIN_PASSWORD
+        generateValue: true
+      - key: SEED_AGENT_PASSWORD
+        generateValue: true
+      - key: SEED_CUSTOMER_PASSWORD
+        generateValue: true
+      - key: SEED_ENABLED
+        value: 'true'
+      - key: SEED_DEMO_DATA
+        value: 'false'
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
+      - key: CORS_ALLOWED_ORIGIN_PATTERNS
+        value: https://bramhprakashtiwari9.github.io

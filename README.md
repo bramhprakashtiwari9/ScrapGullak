@@ -15,6 +15,12 @@ In the repository settings, set **Settings → Pages → Build and deployment �
 
 GitHub Pages hosts only the static, mock-data web demo. It does not run or host the API. Backend production hosting requires a separate Java/container host, a managed database, secure production environment variables, and an API URL configured for the live web app. No production API or payment service is configured here.
 
+## Temporary Render backend demo
+
+`render.yaml` describes a free Render Docker service and free PostgreSQL database. To create them, sign in to Render, create a new Blueprint, connect this repository, review the two free resources, and apply the Blueprint. Render generates unique JWT and seed-account passwords; keep them private. The database is temporary and may expire after Render's free retention period, and the free API instance can sleep when idle. Do not use this setup for production data or payments.
+
+The public GitHub Pages website remains a mock-only demo and does not call this API. Connecting it to a live API requires production customer/agent authentication UX and a separate review of the payment and data-handling flows.
+
 The expected public demo address is <https://bramhprakashtiwari9.github.io/ScrapGullak/>.
 
 ## Local development
